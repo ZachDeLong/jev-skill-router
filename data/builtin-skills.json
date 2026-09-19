@@ -1,0 +1,18 @@
+[
+  {"name":"code-review","description":"Review the current diff, or a PR number/branch/path target, for correctness bugs at a given effort level. Use when the user asks to review code, a PR, a diff, or a branch."},
+  {"name":"simplify","description":"Review the changed code for reuse, simplification, efficiency, and altitude cleanups, then apply the fixes. Quality only; it does not hunt for bugs."},
+  {"name":"security-review","description":"Complete a security review of the pending changes on the current branch."},
+  {"name":"claude-api","description":"Reference for the Claude API / Anthropic SDK: model ids, pricing, params, streaming, tool use, MCP, agents, caching, token counting, model migration. Use whenever the prompt names Claude or Anthropic models or SDKs, asks about an LLM's pricing/model choice/limits/caching, or the task is LLM-shaped (agent, MCP, tool definitions, RAG, LLM-judge, summarize/classify/extract with a model) with the provider unstated."},
+  {"name":"artifact-design","description":"Design guidance and fundamentals for Artifacts (published HTML pages, apps, dashboards, reports hosted on claude.ai). Load before writing any artifact."},
+  {"name":"artifact-diagramming","description":"Diagramming know-how for Artifacts: when a picture earns its place, how to draw one that shows the real mechanism, inline-SVG mechanics legible in both themes."},
+  {"name":"artifact-capabilities","description":"Runtime capabilities a published Artifact page can be granted: reading live or connected data, remembering what people do on it (poll, sign-up sheet, checklist), shared state across viewers, knowing who is viewing, asking Claude, storing files, downloads."},
+  {"name":"dataviz","description":"Use whenever creating any chart, graph, plot, dashboard, or data visualization in any medium: HTML/React artifact, inline SVG, matplotlib/plotly/d3/Recharts code, PNG. Covers chart form, color palettes, stat tiles, sparklines, heatmaps, legends, axes, tooltips."},
+  {"name":"update-config","description":"Configure the Claude Code harness via settings.json: hooks for automated behaviors ('from now on when X', 'each time X'), permissions ('allow X'), env vars, hook troubleshooting, settings.json/settings.local.json changes."},
+  {"name":"keybindings-help","description":"Customize Claude Code keyboard shortcuts, rebind keys, add chord bindings, or modify ~/.claude/keybindings.json."},
+  {"name":"fewer-permission-prompts","description":"Scan transcripts for common read-only Bash and MCP tool calls, then add a prioritized allowlist to project .claude/settings.json to reduce permission prompts."},
+  {"name":"loop","description":"Run a prompt or slash command on a recurring interval (e.g. check the deploy every 5 minutes, keep running a command repeatedly). Not for one-off tasks."},
+  {"name":"schedule","description":"Create, update, list, or run scheduled cloud agents (routines) that execute on a cron schedule, or a one-time scheduled run ('run this once at 3pm', 'remind me tomorrow')."},
+  {"name":"workflow-authoring","description":"Reference for writing a Workflow tool script that orchestrates multiple subagents deterministically: script API, gotchas, resume, quality patterns, worked examples."},
+  {"name":"run","description":"Launch and drive this project's app to see a change working. Use when asked to run, start, or screenshot the app, or to confirm a change works in the real app rather than just tests."},
+  {"name":"init","description":"Initialize a new CLAUDE.md file with codebase documentation."}
+]

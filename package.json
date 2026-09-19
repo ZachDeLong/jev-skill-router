@@ -1,0 +1,21 @@
+{
+  "name": "jev-skill-router",
+  "version": "0.1.0",
+  "description": "Jev-powered skill router for Claude Code: picks which skills apply to each prompt",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "route": "node src/cli.js route",
+    "eval": "node src/cli.js eval"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "jev-skill-router": "./src/cli.js"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0"
+  }
+}
