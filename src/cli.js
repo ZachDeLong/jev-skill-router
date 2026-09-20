@@ -6,6 +6,7 @@ import { homedir } from "node:os";
 import { buildCatalog, projectContext, readJson } from "./catalog.js";
 import { route, selectPicks, formatContext, band, DATA_DIR, BANDS } from "./route.js";
 import { runEval, projectsDir } from "./eval.js";
+import { runJudge } from "./judge.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const HOOK_PATH = join(HERE, "hook.js").replace(/\\/g, "/");
@@ -20,6 +21,14 @@ for (let i = 0; i < rest.length; i++) {
   else args.push(rest[i]);
 }
 const cwd = resolve(flags.cwd ?? process.cwd());
+const oneLine = (s, n) => s.slice(0, n).replace(/\s+/g, " ");
+
+function outFile(prefix) {
+  mkdirSync(DATA_DIR, { recursive: true });
+  const file = flags.out ?? join(DATA_DIR, `${prefix}-${Date.now()}.json`);
+  mkdirSync(dirname(file), { recursive: true });
+  return file;
+}
 
 const commands = {
   async catalog() {
@@ -43,17 +52,13 @@ const commands = {
 
   // "eval" here is the CLI subcommand name (transcript replay), not JavaScript eval().
   async eval() {
-    const dirs = args.length ? args.map((a) => resolve(a)) : [projectsDir()].flatMap((root) =>
-      existsSync(root) ? readJsonDirs(root) : []);
-    const limit = Number(flags.limit ?? 100);
-    const threshold = Number(flags.threshold ?? BANDS.invoke);
-    const out = await runEval({ dirs, limit, threshold, seed: Number(flags.seed ?? 1), noRecent: !!flags["no-recent"], onTurn: (r, n, total) => {
-      if (!flags.quiet) process.stderr.write(`\r${n}/${total}`);
-    } });
+    const dirs = args.length ? args.map((a) => resolve(a)) : existsSync(projectsDir()) ? readdirSync(projectsDir()).map((n) => join(projectsDir(), n)) : [];
+    const out = await runEval({
+      dirs, limit: Number(flags.limit ?? 100), threshold: Number(flags.threshold ?? BANDS.invoke), seed: Number(flags.seed ?? 1),
+      noRecent: !!flags["no-recent"], onTurn: (r, n, total) => { if (!flags.quiet) process.stderr.write(`\r${n}/${total}`); },
+    });
     process.stderr.write("\n");
-    mkdirSync(DATA_DIR, { recursive: true });
-    const file = flags.out ?? join(DATA_DIR, `eval-${Date.now()}.json`);
-    mkdirSync(dirname(file), { recursive: true });
+    const file = outFile("eval");
     writeFileSync(file, JSON.stringify(out, null, 2));
     console.log(JSON.stringify(out.summary, null, 2));
     console.log(`cost ≈ $${(out.input_tokens / 1e6 * 0.042).toFixed(4)} for ${out.evaluated} turns (${out.input_tokens} Jev input tokens)`);
@@ -61,10 +66,32 @@ const commands = {
     if (flags.show) {
       console.log("\nTurns where Claude invoked nothing but the router picked something:");
       for (const r of out.results.filter((r) => !r.error && !r.invoked.length && r.picked.length).slice(0, Number(flags.show) || 15))
-        console.log(`  [${r.picked.join(", ")}]  ${r.prompt.slice(0, 110).replace(/\s+/g, " ")}`);
+        console.log(`  [${r.picked.join(", ")}]  ${oneLine(r.prompt, 110)}`);
       console.log("\nTurns where Claude invoked a skill:");
       for (const r of out.results.filter((r) => r.invoked?.length))
-        console.log(`  claude=[${r.invoked.join(", ")}] router=[${r.picked.join(", ")}] top=${JSON.stringify(r.top.slice(0, 3))}  ${r.prompt.slice(0, 80).replace(/\s+/g, " ")}`);
+        console.log(`  claude=[${r.invoked.join(", ")}] router=[${r.picked.join(", ")}] top=${JSON.stringify(r.top.slice(0, 3))}  ${oneLine(r.prompt, 80)}`);
+    }
+  },
+
+  async judge() {
+    const out = await runJudge({
+      source: flags.from ?? "log", limit: Number(flags.limit ?? 40), model: flags.model ?? "haiku",
+      onTurn: (n, total) => { if (!flags.quiet) process.stderr.write(`\r${n}/${total}`); },
+    });
+    process.stderr.write("\n");
+    const file = outFile("judge");
+    writeFileSync(file, JSON.stringify(out, null, 2));
+    const { per_skill, ...rest } = out.summary;
+    console.log(JSON.stringify(rest, null, 2));
+    console.log("\nper skill (needed / harmless / wrong / missed):");
+    for (const [s, c] of Object.entries(per_skill)) console.log(`  ${s.padEnd(40)} ${c.needed} / ${c.harmless} / ${c.wrong} / ${c.missed}`);
+    console.log(`\njudge cost $${out.cost.toFixed(3)} (${out.model}) for ${out.judged} turns; full results: ${file}`);
+    const errors = out.results.filter((r) => r.error);
+    if (errors.length) console.log(`${errors.length} judge errors, first: ${errors[0].error}`);
+    if (flags.show) {
+      console.log("\nwrong picks and misses:");
+      for (const r of out.results.filter((r) => !r.error && (Object.values(r.picks).includes("wrong") || r.missing.length)).slice(0, Number(flags.show) || 15))
+        console.log(`  ${JSON.stringify(r.picks)} missing=${JSON.stringify(r.missing)}\n    ${oneLine(r.prompt, 100)}\n    ${r.note}`);
     }
   },
 
@@ -104,7 +131,7 @@ const commands = {
     for (const l of lines) {
       const e = JSON.parse(l);
       if (e.error) { console.log(`${e.ts}  ERROR ${e.error}`); continue; }
-      console.log(`${e.ts}  ${e.ms}ms  invoke=[${e.invoke.join(",")}] mention=[${e.mention.join(",")}]  ${e.prompt.slice(0, 70).replace(/\s+/g, " ")}`);
+      console.log(`${e.ts}  ${e.ms}ms  gate=${e.gate ?? "?"}  invoke=[${e.invoke.join(",")}] mention=[${e.mention.join(",")}]  ${oneLine(e.prompt, 70)}`);
     }
   },
 
@@ -115,15 +142,13 @@ const commands = {
   route "prompt" [--cwd dir] [--json] score every skill against a prompt
   eval [transcriptDir...] [--limit N] [--threshold P] [--show N] [--no-recent]
                                       replay real transcripts, compare picks vs Claude's Skill calls
+  judge [--from log|eval.json] [--limit N] [--model haiku] [--show N]
+                                      have Claude grade each pick as needed/harmless/wrong + name misses
   config --api-key KEY                store the TypeSafe key (or set TYPESAFE_API_KEY)
   install | uninstall                 add/remove the UserPromptSubmit hook in ~/.claude/settings.json
   log [--n 20]                        tail the hook log (${join(DATA_DIR, "log.jsonl")})`);
   },
 };
-
-function readJsonDirs(root) {
-  return readdirSync(root).map((n) => join(root, n));
-}
 
 try {
   if (!commands[cmd]) throw new Error(`unknown command: ${cmd}`);

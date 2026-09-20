@@ -92,6 +92,32 @@ Things it surfaced on my transcripts:
 - With a Next.js project in context, `vercel:nextjs` scores high on almost anything, which is
   a description problem as much as a routing one.
 
+## Judge: a second opinion on every pick
+
+`judge` runs each router decision (from the hook log, or from an `eval` results file) through a
+headless Haiku call that sees the prompt, the recent turns, and the picks, and labels each pick
+**needed** / **harmless** / **wrong**, plus any catalog skill the router should have picked.
+"Did Claude invoke it" is a bad ground truth because Claude almost never does; a grader that
+knows what the turn needed is a much better one. About $0.02 per turn.
+
+```sh
+node src/cli.js judge --from log --limit 40 --show 15
+node src/cli.js judge --from ~/.claude/jev-skill-router/eval-<ts>.json
+```
+
+First run, 60 firing turns from the eval above (invoke band):
+
+| | needed | harmless | wrong |
+| --- | --- | --- | --- |
+| all 60 turns | 22 | 22 | 20 |
+| excluding 6 screenshot-only prompts | 22 | 20 | 9 |
+
+Eleven of the twenty wrong picks came from prompts that were just a pasted screenshot, which
+Jev can't see. The hook now abstains on those. With those gone, 82% of invoke-band picks were
+needed or harmless. The "mention" band was mostly noise (6 needed, 50 harmless, 34 wrong), so
+treat it as a hint at best. Named misses were almost all
+`anthropic-skills:computer-use` on prompts about computer-use agents.
+
 ## Caveats
 
 - Built-in skill descriptions are copied by hand into `data/builtin-skills.json` and will drift.

@@ -12,7 +12,7 @@ export function projectsDir(home = homedir()) {
 }
 
 /** Prompts that are machine-generated (subagent hand-backs, security-review fan-out), not typed by the user. */
-const GENERATED = [/^Another Claude session sent a message/, /<agent-message/, /^Review this change for security vulnerabilities/];
+const GENERATED = [/^Another Claude session sent a message/, /<agent-message/, /^Review this change for security vulnerabilities/, /^\[Image:/];
 
 /** @returns {Array<{prompt:string, invoked:string[], cwd:string, file:string, recent:object|null}>} */
 export function loadTurns(dirs) {
@@ -76,7 +76,9 @@ export async function runEval({ dirs, limit = 100, seed = 1, threshold = BANDS.i
         tokens += usage.input_tokens;
         const sel = selectPicks(picks, gate);
         const r = {
-          prompt: t.prompt.slice(0, 200),
+          prompt: t.prompt.slice(0, 300),
+          recent: flagsNoRecent ? null : t.recent,
+          cwd,
           invoked: [...new Set(t.invoked)],
           invoked_known: [...new Set(t.invoked)].filter((s) => known.has(s)),
           gate: +gate.toFixed(2),

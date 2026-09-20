@@ -21,8 +21,10 @@ async function readStdin() {
 }
 
 export async function runHook(input) {
+  if (process.env.JEV_SKILL_ROUTER_SKIP) return null; // set by `judge`, which runs claude -p itself
   const prompt = (input.prompt ?? "").trim();
   if (!prompt || prompt.startsWith("/") || prompt.length < 6) return null;
+  if (/^\[Image:/.test(prompt)) return null; // pasted screenshot: Jev is text-only, so abstain
   const cwd = input.cwd || process.cwd();
   const catalog = buildCatalog({ cwd });
   if (!catalog.length) return null;
@@ -30,7 +32,7 @@ export async function runHook(input) {
   const { picks, gate, usage, ms } = await route({ prompt, catalog, context: projectContext(cwd), recent });
   const sel = selectPicks(picks, gate);
   log({
-    session_id: input.session_id, cwd, prompt: prompt.slice(0, 300), ms, input_tokens: usage.input_tokens, had_recent: !!recent, gate: +gate.toFixed(2),
+    session_id: input.session_id, cwd, prompt: prompt.slice(0, 300), ms, input_tokens: usage.input_tokens, recent, gate: +gate.toFixed(2),
     top: picks.slice(0, 8).map((s) => [s.qualified, +s.p.toFixed(2)]),
     invoke: sel.invoke.map((s) => s.qualified), mention: sel.mention.map((s) => s.qualified),
   });
