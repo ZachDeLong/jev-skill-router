@@ -6,8 +6,11 @@ import { homedir } from "node:os";
 
 export const DATA_DIR = join(homedir(), ".claude", "jev-skill-router");
 
-/** Probability bands. Calibrate with `jev-skill-router eval`. */
-export const BANDS = { invoke: 0.65, mention: 0.45 };
+/**
+ * Probability bands. Calibrate with `jev-skill-router judge`. Opus-graded log (2026-09-26):
+ * ≥ 0.85 was 17 needed / 9 harmless / 2 wrong; 0.65–0.85 was 9 / 33 / 26.
+ */
+export const BANDS = { invoke: 0.85, mention: 0.45 };
 export const MAX_INVOKE = 3;
 export const MAX_MENTION = 3;
 const MAX_DESC_CHARS = 700;

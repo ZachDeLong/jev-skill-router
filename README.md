@@ -33,9 +33,11 @@ your skill descriptions are the problem.
    questions = one yes/no ("would this skill help?") per skill, plus a gate question ("is this
    message actually a request?"). Jev returns a probability for each.
 3. `hook.js` turns the probabilities into `additionalContext`:
-   - probability ≥ 0.65: "invoke it with the Skill tool before starting" (max 3)
-   - 0.45 to 0.65 ("mention" band): logged, never injected, because judged mentions were mostly noise
-   - if the gate says the message is just "yes" / "go for it": only ≥ 0.85 matches
+   - probability ≥ 0.85: "invoke it with the Skill tool before starting" (max 3). This was 0.65
+     until the Opus judge run below showed picks under 0.85 are more often wrong than needed.
+   - 0.45 to 0.85 ("mention" band): logged, never injected, because judged mentions were mostly noise
+   - the gate ("is this message just 'yes' / 'go for it'?") still suppresses mentions, and would
+     raise the bar if `GATE_STRICT_THRESHOLD` were set above the invoke threshold
    - screenshot-only prompts, task notifications, subagent hand-backs and title-generation
      calls are skipped entirely
    Every decision is appended to `~/.claude/jev-skill-router/log.jsonl`. Any failure (no key,
