@@ -5,14 +5,11 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { buildCatalog, projectContext } from "./catalog.js";
 import { route, makeClient, BANDS, selectPicks } from "./route.js";
-import { conversationContext, isUserPrompt } from "./context.js";
+import { conversationContext, isUserPrompt, isGenerated } from "./context.js";
 
 export function projectsDir(home = homedir()) {
   return join(home, ".claude", "projects");
 }
-
-/** Prompts that are machine-generated (subagent hand-backs, security-review fan-out), not typed by the user. */
-const GENERATED = [/^Another Claude session sent a message/, /<agent-message/, /^Review this change for security vulnerabilities/, /^\[Image:/];
 
 /** @returns {Array<{prompt:string, invoked:string[], cwd:string, file:string, recent:object|null}>} */
 export function loadTurns(dirs) {
@@ -27,7 +24,7 @@ export function loadTurns(dirs) {
         const m = o.message ?? {};
         if (o.type === "user" && typeof m.content === "string") {
           const p = m.content.trim();
-          const skip = !p || p.startsWith("<") || p.startsWith("/") || p.length < 6 || GENERATED.some((re) => re.test(p));
+          const skip = !p || p.startsWith("<") || p.startsWith("/") || p.length < 6 || /^\[Image:/.test(p) || isGenerated(p);
           if (skip) cur = null;
           else {
             cur = { prompt: p, invoked: [], cwd: o.cwd ?? "", file: f, recent: conversationContext(history, p) };

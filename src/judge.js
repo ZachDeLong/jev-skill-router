@@ -6,17 +6,20 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { buildCatalog } from "./catalog.js";
 import { DATA_DIR } from "./route.js";
+import { isGenerated } from "./context.js";
 
 export const SKIP_ENV = "JEV_SKILL_ROUTER_SKIP";
 const LABELS = ["needed", "harmless", "wrong"];
+const MAX_DESC_CHARS = 300;
 
 /** Load decisions from the hook log, or from an eval results file. */
 export function loadDecisions(source) {
   if (source === "log") {
     const p = join(DATA_DIR, "log.jsonl");
     if (!existsSync(p)) return [];
+    // Older entries include task notifications and subagent hand-backs, which the hook now skips.
     return readFileSync(p, "utf8").trim().split("\n").map((l) => { try { return JSON.parse(l); } catch { return null; } })
-      .filter((e) => e && !e.error && (e.invoke?.length || e.mention?.length))
+      .filter((e) => e && !e.error && !isGenerated(e.prompt) && (e.invoke?.length || e.mention?.length))
       .map((e) => ({ prompt: e.prompt, recent: e.recent ?? null, cwd: e.cwd, top: e.top, invoke: e.invoke, mention: e.mention }));
   }
   const data = JSON.parse(readFileSync(source, "utf8"));
@@ -50,8 +53,15 @@ function extractJson(text) {
   return JSON.parse(m[0]);
 }
 
-export function judgePrompt(d, catalogNames) {
-  const candidates = [...d.invoke.map((s) => `${s} (router: invoke)`), ...d.mention.map((s) => `${s} (router: mention)`)];
+/** @param catalog skills visible from the decision's cwd; recommended ones get their description so the grader isn't guessing from names */
+export function judgePrompt(d, catalog) {
+  const byName = new Map(catalog.map((s) => [s.qualified, s]));
+  const describe = (name) => {
+    const desc = byName.get(name)?.description?.replace(/\s+/g, " ");
+    return desc ? `: ${desc.length > MAX_DESC_CHARS ? desc.slice(0, MAX_DESC_CHARS) + "…" : desc}` : "";
+  };
+  const catalogNames = catalog.map((s) => s.qualified);
+  const candidates = [...d.invoke.map((s) => `${s} (router: invoke)${describe(s)}`), ...d.mention.map((s) => `${s} (router: mention)${describe(s)}`)];
   return `You are grading a skill router for Claude Code. The router read a user's prompt and recommended skills to load.
 Judge each recommendation from the point of view of the assistant that must now handle this prompt.
 
@@ -80,14 +90,22 @@ Reply with only JSON, no prose, shaped exactly like:
 
 export async function runJudge({ source = "log", limit = 40, model = "haiku", concurrency = 3, onTurn }) {
   const decisions = loadDecisions(source).slice(-limit);
-  const catalogNames = buildCatalog({ cwd: process.cwd() }).map((s) => s.qualified);
+  // The catalog depends on the project (project skills, plugins enabled there), so build it per decision cwd.
+  const catalogs = new Map();
+  const catalogFor = (cwd) => {
+    const key = cwd || process.cwd();
+    if (!catalogs.has(key)) catalogs.set(key, buildCatalog({ cwd: key }));
+    return catalogs.get(key);
+  };
   const results = [];
   let cost = 0, i = 0;
   async function worker() {
     while (i < decisions.length) {
       const d = decisions[i++];
       try {
-        const { text, cost: c } = await runClaude(judgePrompt(d, catalogNames), { model });
+        const catalog = catalogFor(d.cwd);
+        const catalogNames = catalog.map((s) => s.qualified);
+        const { text, cost: c } = await runClaude(judgePrompt(d, catalog), { model });
         cost += c;
         const j = extractJson(text);
         const picks = {};

@@ -92,11 +92,14 @@ export function selectPicks(picks, gate = 1) {
 
 const pct = (p) => `${Math.round(p * 100)}%`;
 
-/** The text injected into Claude's context. Kept well under the 10k-char hook cap. */
-export function formatContext({ invoke, mention }) {
-  if (!invoke.length && !mention.length) return null;
+/**
+ * The text injected into Claude's context. Kept well under the 10k-char hook cap.
+ * Only the invoke band: judged picks in the mention band were mostly harmless or wrong
+ * (11 needed / 81 harmless / 39 wrong), so mentions are still logged but never injected.
+ */
+export function formatContext({ invoke }) {
+  if (!invoke.length) return null;
   const lines = ["jev-skill-router matched skills to this prompt (number = probability the skill helps):"];
   for (const s of invoke) lines.push(`- ${s.qualified} (${pct(s.p)}): invoke it with the Skill tool before starting.`);
-  for (const s of mention) lines.push(`- ${s.qualified} (${pct(s.p)}): possibly relevant, use your judgment.`);
   return lines.join("\n");
 }

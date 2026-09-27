@@ -34,8 +34,9 @@ your skill descriptions are the problem.
    message actually a request?"). Jev returns a probability for each.
 3. `hook.js` turns the probabilities into `additionalContext`:
    - probability ≥ 0.65: "invoke it with the Skill tool before starting" (max 3)
-   - 0.45 to 0.65: "possibly relevant, use your judgment" (max 3)
-   - if the gate says the message is just "yes" / "go for it": only ≥ 0.85 matches, no maybes
+   - 0.45 to 0.65 ("mention" band): logged, never injected, because judged mentions were mostly noise
+   - if the gate says the message is just "yes" / "go for it": only ≥ 0.85 matches
+   - pasted screenshots, task notifications and subagent hand-backs are skipped entirely
    Every decision is appended to `~/.claude/jev-skill-router/log.jsonl`. Any failure (no key,
    timeout, bad JSON) exits 0 with no output so your prompt is never blocked.
 
@@ -99,10 +100,11 @@ Things it surfaced on my transcripts:
 ## Judge: a second opinion on every pick
 
 `judge` runs each router decision (from the hook log, or from an `eval` results file) through a
-headless Haiku call that sees the prompt, the recent turns, and the picks, and labels each pick
-**needed** / **harmless** / **wrong**, plus any catalog skill the router should have picked.
+headless Claude call (Haiku by default, `--model` for a stronger grader) that sees the prompt,
+the recent turns, the picks with their descriptions, and the catalog for that project, and labels
+each pick **needed** / **harmless** / **wrong**, plus any catalog skill the router should have picked.
 "Did Claude invoke it" is a bad ground truth because Claude almost never does; a grader that
-knows what the turn needed is a much better one. About $0.02 per turn.
+knows what the turn needed is a much better one. About $0.02 per turn with Haiku.
 
 ```sh
 node src/cli.js judge --from log --limit 40 --show 15
@@ -121,6 +123,20 @@ Jev can't see. The hook now abstains on those. With those gone, 82% of invoke-ba
 needed or harmless. The "mention" band was mostly noise (6 needed, 50 harmless, 34 wrong), so
 treat it as a hint at best. Named misses were almost all
 `anthropic-skills:computer-use` on prompts about computer-use agents.
+
+Second run (2026-09-26), 102 firing turns from a week of the hook log, Haiku grader:
+
+| | needed | harmless | wrong |
+| --- | --- | --- | --- |
+| invoke band, all turns | 41 | 59 | 14 |
+| invoke band, 80 typed prompts | 34 | 45 | 6 |
+| mention band | 11 | 81 | 39 |
+
+The other 22 turns were task notifications and subagent hand-backs, where most wrong picks came
+from; the hook now skips those. `computer-use` fired on 39 turns, but all 12 of its wrong picks
+were in the mention band, which is why mentions are no longer injected. Haiku grading from skill
+names alone made mistakes of its own (it read `typesafe-ai` as TypeScript), so the judge now
+gets each pick's description.
 
 ## Caveats
 

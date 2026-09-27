@@ -6,7 +6,7 @@ import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { buildCatalog, projectContext, readJson } from "./catalog.js";
 import { route, selectPicks, formatContext, DATA_DIR } from "./route.js";
-import { tailLines, parseEntries, conversationContext } from "./context.js";
+import { tailLines, parseEntries, conversationContext, isGenerated } from "./context.js";
 
 function log(entry) {
   try {
@@ -26,6 +26,7 @@ export async function runHook(input) {
   const prompt = (input.prompt ?? "").trim();
   if (!prompt || prompt.startsWith("/") || prompt.length < 6) return null;
   if (/^\[Image:/.test(prompt)) return null; // pasted screenshot: Jev is text-only, so abstain
+  if (isGenerated(prompt)) return null; // task notification or subagent hand-back: nothing the user asked for
   const cwd = input.cwd || process.cwd();
   const catalog = buildCatalog({ cwd });
   if (!catalog.length) return null;
