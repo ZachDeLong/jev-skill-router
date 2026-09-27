@@ -99,8 +99,12 @@ const commands = {
     mkdirSync(DATA_DIR, { recursive: true });
     const p = join(DATA_DIR, "config.json");
     const cfg = readJson(p);
-    if (flags["api-key"]) { cfg.apiKey = flags["api-key"]; writeFileSync(p, JSON.stringify(cfg, null, 2)); console.log(`saved api key to ${p}`); }
-    else console.log(`config: ${p}\napiKey: ${cfg.apiKey ? "set" : "not set"} (env TYPESAFE_API_KEY ${process.env.TYPESAFE_API_KEY ? "set" : "not set"})`);
+    if (flags.mode && !["live", "shadow"].includes(flags.mode)) throw new Error("--mode must be live or shadow");
+    if (flags["api-key"]) cfg.apiKey = flags["api-key"];
+    if (flags.mode) cfg.mode = flags.mode;
+    if (flags["api-key"] || flags.mode) { writeFileSync(p, JSON.stringify(cfg, null, 2)); console.log(`saved ${p}`); }
+    console.log(`config: ${p}\napiKey: ${cfg.apiKey ? "set" : "not set"} (env TYPESAFE_API_KEY ${process.env.TYPESAFE_API_KEY ? "set" : "not set"})`);
+    console.log(`mode: ${cfg.mode ?? "live"}${cfg.mode === "shadow" ? " (routes and logs, injects nothing)" : ""}`);
   },
 
   async install() {
@@ -131,7 +135,7 @@ const commands = {
     for (const l of lines) {
       const e = JSON.parse(l);
       if (e.error) { console.log(`${e.ts}  ERROR ${e.error}`); continue; }
-      console.log(`${e.ts}  ${e.ms}ms  gate=${e.gate ?? "?"}  invoke=[${e.invoke.join(",")}] mention=[${e.mention.join(",")}]  ${oneLine(e.prompt, 70)}`);
+      console.log(`${e.ts}  ${e.ms}ms${e.shadow ? "  shadow" : ""}  gate=${e.gate ?? "?"}  invoke=[${e.invoke.join(",")}] mention=[${e.mention.join(",")}]  ${oneLine(e.prompt, 70)}`);
     }
   },
 
@@ -144,7 +148,8 @@ const commands = {
                                       replay real transcripts, compare picks vs Claude's Skill calls
   judge [--from log|eval.json] [--limit N] [--model haiku] [--show N]
                                       have Claude grade each pick as needed/harmless/wrong + name misses
-  config --api-key KEY                store the TypeSafe key (or set TYPESAFE_API_KEY)
+  config [--api-key KEY] [--mode live|shadow]
+                                      store the TypeSafe key (or set TYPESAFE_API_KEY); shadow = log only, inject nothing
   install | uninstall                 add/remove the UserPromptSubmit hook in ~/.claude/settings.json
   log [--n 20]                        tail the hook log (${join(DATA_DIR, "log.jsonl")})`);
   },

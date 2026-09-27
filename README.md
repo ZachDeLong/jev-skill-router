@@ -50,6 +50,10 @@ node src/cli.js install                                # adds the hook to ~/.cla
 
 Restart Claude Code. `node src/cli.js uninstall` removes the hook.
 
+**Shadow mode:** `node src/cli.js config --mode shadow` keeps routing and logging every prompt but
+injects nothing, so you can `judge` Jev's picks before letting them steer Claude. Shadow entries
+are marked `"shadow": true` in the log. `--mode live` turns injection back on.
+
 ## Commands
 
 ```

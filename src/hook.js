@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // Claude Code UserPromptSubmit hook. Reads the hook JSON on stdin, asks Jev which
 // skills fit the prompt, prints additionalContext. Never blocks or fails the prompt.
+// In shadow mode (config.json "mode": "shadow") it still routes and logs but prints nothing.
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { buildCatalog, projectContext } from "./catalog.js";
+import { buildCatalog, projectContext, readJson } from "./catalog.js";
 import { route, selectPicks, formatContext, DATA_DIR } from "./route.js";
 import { tailLines, parseEntries, conversationContext } from "./context.js";
 
@@ -31,12 +32,14 @@ export async function runHook(input) {
   const recent = input.transcript_path ? conversationContext(parseEntries(tailLines(input.transcript_path)), prompt) : null;
   const { picks, gate, usage, ms } = await route({ prompt, catalog, context: projectContext(cwd), recent });
   const sel = selectPicks(picks, gate);
+  const shadow = readJson(join(DATA_DIR, "config.json")).mode === "shadow";
   log({
     session_id: input.session_id, cwd, prompt: prompt.slice(0, 300), ms, input_tokens: usage.input_tokens, recent, gate: +gate.toFixed(2),
     top: picks.slice(0, 8).map((s) => [s.qualified, +s.p.toFixed(2)]),
     invoke: sel.invoke.map((s) => s.qualified), mention: sel.mention.map((s) => s.qualified),
+    ...(shadow && { shadow: true }),
   });
-  return formatContext(sel);
+  return shadow ? null : formatContext(sel);
 }
 
 const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/").split("/").pop());
