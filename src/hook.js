@@ -50,5 +50,7 @@ if (isMain) {
   } catch (err) {
     log({ error: String(err?.message ?? err) });
   }
-  process.exit(0);
+  // No process.exit(): on Windows, exiting while fetch's background work is still posting
+  // tasks trips a libuv assertion (async.c:76) and the nonzero exit drops our output.
+  process.exitCode = 0;
 }
