@@ -36,7 +36,8 @@ your skill descriptions are the problem.
    - probability ≥ 0.65: "invoke it with the Skill tool before starting" (max 3)
    - 0.45 to 0.65 ("mention" band): logged, never injected, because judged mentions were mostly noise
    - if the gate says the message is just "yes" / "go for it": only ≥ 0.85 matches
-   - pasted screenshots, task notifications and subagent hand-backs are skipped entirely
+   - screenshot-only prompts, task notifications, subagent hand-backs and title-generation
+     calls are skipped entirely
    Every decision is appended to `~/.claude/jev-skill-router/log.jsonl`. Any failure (no key,
    timeout, bad JSON) exits 0 with no output so your prompt is never blocked.
 
@@ -133,10 +134,22 @@ Second run (2026-09-26), 102 firing turns from a week of the hook log, Haiku gra
 | mention band | 11 | 81 | 39 |
 
 The other 22 turns were task notifications and subagent hand-backs, where most wrong picks came
-from; the hook now skips those. `computer-use` fired on 39 turns, but all 12 of its wrong picks
-were in the mention band, which is why mentions are no longer injected. Haiku grading from skill
-names alone made mistakes of its own (it read `typesafe-ai` as TypeScript), so the judge now
-gets each pick's description.
+from; the hook now skips those. Haiku grading from skill names alone made mistakes of its own
+(it read `typesafe-ai` as TypeScript), so the judge now gets each pick's description.
+
+Same log, regraded by Opus with descriptions (88 turns, $4.44). Opus is much stricter: of 180
+picks both graded, it moved 47 from Haiku's "harmless" to "wrong". Split by Jev's probability:
+
+| probability | needed | harmless | wrong |
+| --- | --- | --- | --- |
+| ≥ 0.85 | 17 | 9 | 2 |
+| 0.75 – 0.85 | 5 | 17 | 12 |
+| 0.65 – 0.75 | 4 | 16 | 14 |
+| 0.55 – 0.65 | 2 | 31 | 26 |
+| 0.45 – 0.55 | 2 | 11 | 27 |
+
+Jev's probabilities are meaningful: above 0.85 most picks were needed and almost none wrong;
+below that, a pick is more likely wrong than needed.
 
 ## Caveats
 

@@ -33,8 +33,11 @@ export function parseEntries(lines) {
   return out;
 }
 
-/** Prompts that are machine-generated (task notifications, subagent hand-backs, security-review fan-out), not typed by the user. */
-export const GENERATED = [/^<task-notification>/, /^Another Claude session sent a message/, /<agent-message/, /^Review this change for security vulnerabilities/];
+/**
+ * Prompts that are machine-generated (task notifications, subagent hand-backs, security-review fan-out,
+ * a tool in the Obsidian vault asking for a conversation title), not typed by the user.
+ */
+export const GENERATED = [/^<task-notification>/, /^Another Claude session sent a message/, /<agent-message/, /^Review this change for security vulnerabilities/, /^User's request:\s*"""/];
 export const isGenerated = (prompt) => GENERATED.some((re) => re.test(prompt));
 
 export function isUserPrompt(entry) {

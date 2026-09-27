@@ -25,7 +25,8 @@ export async function runHook(input) {
   if (process.env.JEV_SKILL_ROUTER_SKIP) return null; // set by `judge`, which runs claude -p itself
   const prompt = (input.prompt ?? "").trim();
   if (!prompt || prompt.startsWith("/") || prompt.length < 6) return null;
-  if (/^\[Image:/.test(prompt)) return null; // pasted screenshot: Jev is text-only, so abstain
+  // Screenshot with little or no text ("[Image #4]", older "[Image: source: ...]"): Jev is text-only, so abstain
+  if (/^\[Image:/.test(prompt) || prompt.replace(/\[Image #\d+\]/g, "").trim().length < 6) return null;
   if (isGenerated(prompt)) return null; // task notification or subagent hand-back: nothing the user asked for
   const cwd = input.cwd || process.cwd();
   const catalog = buildCatalog({ cwd });
